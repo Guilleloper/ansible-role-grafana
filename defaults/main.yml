@@ -1,0 +1,26 @@
+---
+# Deployment mode
+grafana__deployment_mode: "docker"
+
+# System user and group
+grafana__group_name: "grafana"
+grafana__group_id: 472
+grafana__user_name: "grafana"
+grafana__user_id: 472
+grafana__user_home: "/home/grafana"
+grafana__user_shell: "/usr/sbin/nologin"
+
+# Common locations
+grafana__path_data: "/var/lib/grafana"
+grafana__path_config: "/etc/grafana"
+grafana__path_log: "/var/log/grafana"
+
+# Security
+grafana__security_ssl_enable: False
+grafana__security_ssl_key: "changeme"
+grafana__security_ssl_crt: "changeme"
+
+# Docker config
+grafana__docker_image: "grafana/grafana"
+grafana__docker_tag: "7.5.2"
+...

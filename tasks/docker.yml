@@ -1,0 +1,113 @@
+---
+- name: Ansible modules dependencies
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - python3-pip=18.1-5+rpt1
+    - virtualenv=15.1.0+ds-2
+    - python-docker=3.4.1-4
+
+- name: PiP dependencies
+  pip:
+    name:
+      - docker==4.4.4
+    state: present
+
+- name: System group
+  group:
+    name: "{{ grafana__group_name }}"
+    gid: "{{ grafana__group_id }}"
+
+- name: System user
+  user:
+    name: "{{ grafana__user_name }}"
+    uid: "{{ grafana__user_id }}"
+    group: "{{ grafana__group_name }}"
+    groups: docker
+    home: "{{ grafana__user_home }}"
+    shell: "{{ grafana__user_shell }}"
+
+- name: Folders
+  file:
+    state: directory
+    path: "{{ item }}"
+    owner: "{{ grafana__user_name }}"
+    group: "{{ grafana__group_name }}"
+    mode: 0755
+  when:
+    - item != "/tmp"
+    - item != "/var/tmp"
+  loop:
+    - "{{ grafana__path_data }}"
+    - "{{ grafana__path_config }}"
+    - "{{ grafana__path_log }}"
+
+- name: SSL folder
+  file:
+    state: directory
+    path: "{{ grafana__path_config }}/ssl"
+    owner: "{{ grafana__user_name }}"
+    group: "{{ grafana__group_name }}"
+    mode: 0755
+  when: grafana__security_ssl_enable
+
+- name: SSL key
+  copy:
+    content: "{{ grafana__security_ssl_key }}"
+    dest: "{{ grafana__path_config }}/ssl/grafana.key"
+    owner: "{{ grafana__user_name }}"
+    group: "{{ grafana__group_name }}"
+    mode: 0600
+  when: grafana__security_ssl_enable
+  notify:
+    - Restart Systemd service
+
+- name: SSL certificate
+  copy:
+    content: "{{ grafana__security_ssl_crt }}"
+    dest: "{{ grafana__path_config }}/ssl/grafana.crt"
+    owner: "{{ grafana__user_name }}"
+    group: "{{ grafana__group_name }}"
+    mode: 0644
+  when: grafana__security_ssl_enable
+  notify:
+    - Restart Systemd service
+
+- name: Configuration file
+  template:
+    src: "grafana.ini.j2" 
+    dest: "{{ grafana__path_config }}/grafana.ini"
+    owner: "{{ grafana__user_name }}"
+    group: "{{ grafana__group_name }}"
+    mode: 0644
+  notify:
+    - Restart Systemd service
+
+- name: Create Docker containter
+  docker_container:
+    name: grafana
+    image: "{{ grafana__docker_image }}:{{ grafana__docker_tag }}"
+    state: present
+    volumes:
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "{{ grafana__path_data }}:/var/lib/grafana"
+      - "{{ grafana__path_config }}:/etc/grafana"
+      - "{{ grafana__path_log }}:/var/log/grafana"
+    ports:
+      - "3000:3000"
+  notify:
+    - Restart Systemd service
+
+- name: Systemd service file
+  copy:
+    src: docker/grafana.service
+    dest: /lib/systemd/system/grafana.service
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - Restart Systemd service
+...
